@@ -57,22 +57,15 @@ class AccessService {
             code: 200,
             metaData: null
         }
-        // } catch (error) {
-        //     return {
-        //         code: 'xxx',
-        //         status: 'error',
-        //         message: error.message,
-        //     }
-        // }
     }
-    /* 
-        1- check email
-        2- check password
-        3- create accesstoken and refreshtoken
-        4 - generate token
-        5- get data return login
-    */
     static logIn = async ({ email, password, refreshToken = null }) => {
+        /* 
+            1- check email
+            2- check password
+            3- create accesstoken and refreshtoken
+            4 - generate token
+            5- get data return login
+        */
         const foundShop = await findByEmail({ email });
         if (!foundShop) {
             throw new BadRequestError('Shop not existed')
@@ -95,6 +88,11 @@ class AccessService {
             shop: getInfoData({ fields: ['_id', 'name', 'email'], object: foundShop }),
             tokens
         }
+    }
+    static logOut = async (keyStore) => {
+        const delKey = await KeyTokenService.removeKeyById(keyStore._id);
+        console.log({ delKey });
+        return delKey;
     }
 }
 
