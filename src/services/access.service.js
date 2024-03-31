@@ -8,6 +8,7 @@ const { findByEmail } = require("./shop.service");
 const { createTokenPair, verifyJWT } = require("../auth/authUtils");
 const { getInfoData } = require("../utils");
 const { BadRequestError, AuthFailureError, ForbidenError } = require("../core/error.response");
+const keyTokenModel = require("../models/keyToken.model");
 
 const RoleShop = {
     SHOP: 'SHOP',
@@ -94,26 +95,50 @@ class AccessService {
         console.log({ delKey });
         return delKey;
     }
-    static handleRefreshToken = async (refreshToken) => {
-        //check refreshtoken used
-        const foundToken = await KeyTokenService.findByRefreshTokenUsed(refreshToken);
-        if (foundToken) {
-            //decode xem thử là user hay hacker
-            const { userId, email } = await verifyJWT(refreshToken, foundToken.privateKey);
-            console.log({ userId, email });
-            //xoa tat ca token trong keystore
+    // static handleRefreshToken = async (refreshToken) => {
+    //     //check refreshtoken used
+    //     const foundToken = await KeyTokenService.findByRefreshTokenUsed(refreshToken);
+    //     if (foundToken) {
+    //         //decode xem thử là user hay hacker
+    //         const { userId, email } = await verifyJWT(refreshToken, foundToken.privateKey);
+    //         console.log({ userId, email });
+    //         //xoa tat ca token trong keystore
+    //         await KeyTokenService.deleteKeyById(userId);
+    //         throw new ForbidenError('Something went wrong. Please relogin');
+    //     }
+    //     const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
+    //     if (!holderToken) throw new AuthFailureError('Shop not existed');
+    //     const { userId, email } = await verifyJWT(refreshToken, holderToken.privateKey);
+    //     //check userId
+    //     const foundShop = await findByEmail({ email });
+    //     if (!foundShop) throw new AuthFailureError('Shop not existed');
+    //     const tokens = await createTokenPair({ userId, email }, holderToken.publicKey, holderToken.privateKey);
+    //     //update token
+    //     await holderToken.updateOne({
+    //         $set: {
+    //             refreshToken: tokens.refreshToken,
+    //         },
+    //         $addToSet: {
+    //             refreshTokensUsed: refreshToken // đã sử dụng
+    //         }
+    //     })
+    //     return {
+    //         user: { userId, email },
+    //         tokens
+    //     }
+    // }
+    static handleRefreshToken = async ({ refreshToken, user, keyStore }) => {
+        const { userId, email } = user;
+        if (keyStore.refreshTokensUsed.includes(refreshToken)) {
             await KeyTokenService.deleteKeyById(userId);
             throw new ForbidenError('Something went wrong. Please relogin');
         }
-        const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
-        if (!holderToken) throw new AuthFailureError('Shop not existed');
-        const { userId, email } = await verifyJWT(refreshToken, holderToken.privateKey);
-        //check userId
+        if (keyStore.refreshToken !== refreshToken) throw new AuthFailureError('Shop not existed');
         const foundShop = await findByEmail({ email });
         if (!foundShop) throw new AuthFailureError('Shop not existed');
-        const tokens = await createTokenPair({ userId, email }, holderToken.publicKey, holderToken.privateKey);
+        const tokens = await createTokenPair({ userId, email }, keyStore.publicKey, keyStore.privateKey);
         //update token
-        await holderToken.updateOne({
+        await keyTokenModel.updateOne({ user: userId }, {
             $set: {
                 refreshToken: tokens.refreshToken,
             },
@@ -122,7 +147,7 @@ class AccessService {
             }
         })
         return {
-            user: { userId, email },
+            user,
             tokens
         }
     }
