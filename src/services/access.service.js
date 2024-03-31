@@ -5,9 +5,9 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const KeyTokenService = require("./keyToken.service");
 const { findByEmail } = require("./shop.service");
-const { createTokenPair } = require("../auth/authUtils");
+const { createTokenPair, verifyJWT } = require("../auth/authUtils");
 const { getInfoData } = require("../utils");
-const { BadRequestError, AuthFailureError } = require("../core/error.response");
+const { BadRequestError, AuthFailureError, ForbidenError } = require("../core/error.response");
 
 const RoleShop = {
     SHOP: 'SHOP',
@@ -93,6 +93,38 @@ class AccessService {
         const delKey = await KeyTokenService.removeKeyById(keyStore._id);
         console.log({ delKey });
         return delKey;
+    }
+    static handleRefreshToken = async (refreshToken) => {
+        //check refreshtoken used
+        const foundToken = await KeyTokenService.findByRefreshTokenUsed(refreshToken);
+        if (foundToken) {
+            //decode xem thử là user hay hacker
+            const { userId, email } = await verifyJWT(refreshToken, foundToken.privateKey);
+            console.log({ userId, email });
+            //xoa tat ca token trong keystore
+            await KeyTokenService.deleteKeyById(userId);
+            throw new ForbidenError('Something went wrong. Please relogin');
+        }
+        const holderToken = await KeyTokenService.findByRefreshToken(refreshToken);
+        if (!holderToken) throw new AuthFailureError('Shop not existed');
+        const { userId, email } = await verifyJWT(refreshToken, holderToken.privateKey);
+        //check userId
+        const foundShop = await findByEmail({ email });
+        if (!foundShop) throw new AuthFailureError('Shop not existed');
+        const tokens = await createTokenPair({ userId, email }, holderToken.publicKey, holderToken.privateKey);
+        //update token
+        await holderToken.updateOne({
+            $set: {
+                refreshToken: tokens.refreshToken,
+            },
+            $addToSet: {
+                refreshTokensUsed: refreshToken // đã sử dụng
+            }
+        })
+        return {
+            user: { userId, email },
+            tokens
+        }
     }
 }
 
