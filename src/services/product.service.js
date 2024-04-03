@@ -7,7 +7,11 @@ const {
     publicProductByShop,
     findAllPublishForShop,
     unPublishProductByShop,
-    searchProducts } = require("../models/repositories/product.repo");
+    searchProducts,
+    findAllProducts,
+    findProduct,
+    updateProduct, } = require("../models/repositories/product.repo");
+const { removeUndefindedObject, updateNestedObject } = require("../utils");
 
 //define factory class to create product
 class ProductFactory {
@@ -31,6 +35,14 @@ class ProductFactory {
         return unPublishProductByShop({ product_shop, product_id });
     }
 
+    static async updateProduct(type, productId, payload) {
+        const productClass = ProductFactory.productRegistry[type];
+        if (!productClass) {
+            throw new BadRequestError('Invalid product Type:', type);
+        }
+        return new productClass(payload).updateProduct(productId);
+    }
+
     // QUERY
     static async findAllDraftForShop({ product_shop, limit = 50, skip = 0 }) {
         const query = { product_shop, isDraft: true };
@@ -43,6 +55,13 @@ class ProductFactory {
     static async searchProducts({ keySearch }) {
         return await searchProducts({ keySearch });
     }
+    static async findAllProducts({ limit = 50, sort = 'ctime', page = 1, filter = { isPublished: true } }) {
+        return await findAllProducts({ limit, sort, page, filter, select: ['product_name', 'product_price', 'product_thumb'] })
+    }
+    static async findProduct({ product_id }) {
+        return await findProduct({ product_id, unSelect: ['__v', 'createdAt', 'updatedAt'] })
+    }
+
     // END QUERY
 
 }
@@ -50,14 +69,8 @@ class ProductFactory {
 //define base product class
 class Product {
     constructor({
-        product_name,
-        product_thumb,
-        product_description,
-        product_price,
-        product_quantity,
-        product_type,
-        product_shop,
-        product_attributes
+        product_name, product_thumb, product_description, product_price,
+        product_quantity, product_type, product_shop, product_attributes
     }) {
         this.product_name = product_name;
         this.product_thumb = product_thumb;
@@ -71,6 +84,9 @@ class Product {
     //create new product
     async createProduct(product_id) {
         return await product.create({ ...this, _id: product_id });
+    }
+    async updateProduct(productId, payload) {
+        return await updateProduct({ productId, payload, model: product });
     }
 }
 
@@ -86,6 +102,18 @@ class Clothing extends Product {
         if (!newProduct) throw new BadRequestError('Create new product failed');
         return newProduct;
     }
+
+    async updateProduct(productId) {
+        //1. Remove attributes null and undefinded
+        //2. check where update
+        const objectParams = removeUndefindedObject(this);
+        if (objectParams.product_attributes) {
+            //update child
+            await updateProduct({ productId, payload: updateNestedObject(objectParams.product_attributes), model: clothing });
+        }
+        const updatedProduct = await super.updateProduct(productId, updateNestedObject(objectParams));
+        return updatedProduct;
+    }
 }
 
 class Electronic extends Product {
@@ -99,6 +127,17 @@ class Electronic extends Product {
         if (!newProduct) throw new BadRequestError('Create new product failed');
         return newProduct;
     }
+    async updateProduct(productId) {
+        //1. Remove attributes null and undefinded
+        //2. check where update
+        const objectParams = removeUndefindedObject(this);
+        if (objectParams.product_attributes) {
+            //update child
+            await updateProduct({ productId, payload: updateNestedObject(objectParams.product_attributes), model: electronic });
+        }
+        const updatedProduct = await super.updateProduct(productId, updateNestedObject(objectParams));
+        return updatedProduct;
+    }
 }
 
 class Furniture extends Product {
@@ -111,6 +150,17 @@ class Furniture extends Product {
         const newProduct = await super.createProduct(newFurniture._id);
         if (!newProduct) throw new BadRequestError('Create new product failed');
         return newProduct;
+    }
+    async updateProduct(productId) {
+        //1. Remove attributes null and undefinded
+        //2. check where update
+        const objectParams = removeUndefindedObject(this);
+        if (objectParams.product_attributes) {
+            //update child
+            await updateProduct({ productId, payload: updateNestedObject(objectParams.product_attributes), model: furniture });
+        }
+        const updatedProduct = await super.updateProduct(productId, updateNestedObject(objectParams));
+        return updatedProduct;
     }
 }
 
