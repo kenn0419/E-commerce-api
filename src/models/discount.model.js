@@ -37,7 +37,7 @@ var discountSchema = new Schema({
         type: Number,
         required: true
     },
-    discount_user_count: { // Users's used quantity
+    discount_uses_count: { // Users's used quantity
         type: Number,
         required: true,
     },
