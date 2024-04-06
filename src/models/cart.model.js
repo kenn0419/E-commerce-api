@@ -1,36 +1,44 @@
 'use strict'
 
-const { Schema, Types, model } = require('mongoose'); // Erase if already required
+const { Schema, Types, model } = require('mongoose');
 
 const DOCUMENT_NAME = 'Cart';
 const COLLECTION_NAME = 'Carts';
+
 // Declare the Schema of the Mongo model
 var cartSchema = new Schema({
     cart_state: {
         type: String,
-        required: true,
-        enum: ['active', 'completed', 'failed', 'pending'],
-        default: 'active'
+        require: true,
+        default: 'active',
+        enum: ['active', 'complete', 'fail', 'pending']
     },
     cart_products: {
         type: Array,
-        required: true,
         default: [],
+        required: true,
+        /**
+         * Includes: 
+         * {
+            *  productId,
+            *  shopId,
+            *  quantity,
+            *  name,
+            *  price
+         * }
+         */
     },
-    cart_count_product: {
+    cart_count_products: {
         type: Number,
-        default: 0,
+        required: true
     },
     cart_userId: {
         type: Number,
         required: true
-    }
-}, {
-    collection: COLLECTION_NAME,
-    timeseries: {
-        createdAt: 'createdOn',
-        updatedAt: 'modifyOn'
     },
+}, {
+    timestamps: true,
+    collection: COLLECTION_NAME
 });
 
 //Export the model
