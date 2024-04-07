@@ -41,9 +41,14 @@ const deleteItemFromCart = async ({ userId, productId }) => {
     return await cartModel.updateOne(query, updateSet);
 }
 
+const findCartById = async ({ cartId }) => {
+    return await cartModel.findById(cartId);
+}
+
 module.exports = {
     createUserCart,
     findUserCart,
     updateUserCartQuantity,
     deleteItemFromCart,
+    findCartById,
 }

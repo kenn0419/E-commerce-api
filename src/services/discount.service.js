@@ -62,13 +62,12 @@ class DiscountService {
             throw new NotFoundError('Discount not existed');
         }
         const { discount_applies_to, discount_product_ids } = foundedDiscount;
-        console.log(discount_applies_to);
         let products;
         if (discount_applies_to === 'all') {
             products = await findAllProducts({
                 filter: {
                     product_shop: convertToObjectMongoDb(shopId),
-                    // isPubLished: true,
+                    isPublished: true,
                 },
                 limit: +limit,
                 page: +page,
@@ -80,12 +79,12 @@ class DiscountService {
             products = await findAllProducts({
                 filter: {
                     _id: { $in: discount_product_ids },
-                    isPubLished: true,
+                    isPublished: true,
                 },
                 limit: +limit,
                 page: +page,
                 sort: 'ctime',
-                select: ['product_name']
+                select: ['product_name', 'product_thumb', 'product_price', 'product_shop']
             })
         }
         return products;
